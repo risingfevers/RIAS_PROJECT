@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Student Events Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a2e; color: white; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #16213e; padding: 20px; border-radius: 10px; }
+        .metric { font-size: 36px; font-weight: bold; color: #00d4ff; }
+        .label { color: #aaa; margin-top: 10px; }
+        canvas { max-height: 300px; }
+    </style>
+</head>
+<body>
+    <h1>🎓 Real-time Student Engagement Dashboard</h1>
+    
+    <div class="dashboard">
+        <div class="card">
+            <div class="metric" id="totalEvents">0</div>
+            <div class="label">Total Events (last 5 min)</div>
+        </div>
+        <div class="card">
+            <div class="metric" id="activeStudents">0</div>
+            <div class="label">Active Students</div>
+        </div>
+        <div class="card">
+            <div class="metric" id="engagementScore">0%</div>
+            <div class="label">Engagement Score</div>
+        </div>
+        <div class="card">
+            <div class="metric" id="submissions">0</div>
+            <div class="label">Assignment Submissions</div>
+        </div>
+    </div>
+    
+    <div class="dashboard">
+        <div class="card">
+            <h3>Building Occupancy</h3>
+            <canvas id="occupancyChart"></canvas>
+        </div>
+        <div class="card">
+            <h3>Event Distribution</h3>
+            <canvas id="eventsChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="card" style="margin-top: 20px;">
+        <h3>Recent Events</h3>
+        <div id="eventsList" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+
+    <script>
+        let occupancyChart, eventsChart;
+        
+        async function fetchAggregates() {
+            try {
+                const response = await fetch('http://localhost:8081/api/aggregates');
+                const data = await response.json();
+                
+                document.getElementById('totalEvents').textContent = data.total_events || 0;
+                document.getElementById('activeStudents').textContent = data.unique_students || 0;
+                document.getElementById('engagementScore').textContent = `${data.engagement_score || 0}%`;
+                document.getElementById('submissions').textContent = data.submissions_count || 0;
+                
+                updateOccupancyChart(data.buildings_occupancy || {});
+                updateEventsChart(data.event_counts || {});
+            } catch (error) {
+                console.error('Error fetching aggregates:', error);
+            }
+        }
+        
+        function updateOccupancyChart(occupancy) {
+            const labels = Object.keys(occupancy);
+            const values = Object.values(occupancy);
+            
+            if (occupancyChart) {
+                occupancyChart.data.labels = labels;
+                occupancyChart.data.datasets[0].data = values;
+                occupancyChart.update();
+            } else {
+                const ctx = document.getElementById('occupancyChart').getContext('2d');
+                occupancyChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'People',
+                            data: values,
+                            backgroundColor: '#00d4ff'
+                        }]
+                    }
+                });
+            }
+        }
+        
+        function updateEventsChart(events) {
+            const labels = Object.keys(events).slice(0, 8);
+            const values = Object.values(events).slice(0, 8);
+            
+            if (eventsChart) {
+                eventsChart.data.labels = labels;
+                eventsChart.data.datasets[0].data = values;
+                eventsChart.update();
+            } else {
+                const ctx = document.getElementById('eventsChart').getContext('2d');
+                eventsChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9']
+                        }]
+                    }
+                });
+            }
+        }
+        
+        async function connectWebSocket() {
+            try {
+                const ws = new WebSocket('ws://localhost:8081/ws/events');
+                
+                ws.onmessage = (event) => {
+                    const eventData = JSON.parse(event.data);
+                    addEventToList(eventData);
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                };
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+            }
+        }
+        
+        function addEventToList(event) {
+            const eventsList = document.getElementById('eventsList');
+            const eventDiv = document.createElement('div');
+            eventDiv.style.padding = '5px';
+            eventDiv.style.borderBottom = '1px solid #333';
+            eventDiv.innerHTML = `
+                <strong>${event.event_type}</strong> - 
+                Student ${event.student_id} - 
+                ${new Date(event.timestamp).toLocaleTimeString()}
+            `;
+            eventsList.insertBefore(eventDiv, eventsList.firstChild);
+            
+            if (eventsList.children.length > 50) {
+                eventsList.removeChild(eventsList.lastChild);
+            }
+        }
+        
+        setInterval(fetchAggregates, 2000);
+        fetchAggregates();
+        connectWebSocket();
+    </script>
+</body>
+</html>

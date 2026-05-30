@@ -1,0 +1,50 @@
+{
+  "dashboard": {
+    "title": "Real-time Student Events Dashboard",
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Events per Second",
+        "type": "graph",
+        "targets": [
+          {
+            "query": "http://localhost:8081/api/aggregates"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "title": "Building Occupancy",
+        "type": "barchart",
+        "targets": [
+          {
+            "query": "http://localhost:8081/api/aggregates"
+          }
+        ]
+      },
+      {
+        "title": "Engagement Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "query": "http://localhost:8081/api/aggregates"
+          }
+        ]
+      },
+      {
+        "title": "Top Events",
+        "type": "piechart",
+        "targets": [
+          {
+            "query": "http://localhost:8081/api/aggregates"
+          }
+        ]
+      }
+    ],
+    "refresh": "5s"
+  }
+}

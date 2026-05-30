@@ -1,0 +1,10 @@
+apiVersion: 1
+
+datasources:
+  - name: MinIO JSON API
+    type: marcusolsson-json-datasource
+    access: proxy
+    url: http://host.docker.internal:8081
+    isDefault: true
+    jsonData:
+      apiEndpoint: /api/aggregates
